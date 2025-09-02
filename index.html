@@ -129,11 +129,19 @@
             100% { box-shadow: 0 0 5px #fff, 0 0 10px #fbcfe8; }
         }
 
+        #printable-history { display: none; }
+
         @media print {
             body, body * { visibility: hidden; }
-            #printable-area, #printable-area * { visibility: visible; }
-            #printable-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .no-print { display: none; }
+            #printable-history, #printable-history * { visibility: visible; }
+            #printable-history {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 2rem;
+                background: white;
+            }
         }
     </style>
 </head>
@@ -162,7 +170,7 @@
         </header>
 
         <main id="attendance-sheet" class="glass-card shadow-lg rounded-2xl p-4 sm:p-6 hidden">
-            <div id="printable-area">
+            <div id="main-table-container">
                 <h2 id="sheet-title" class="text-xl md:text-2xl font-semibold text-center text-slate-700 mb-2"></h2>
                 <p id="sheet-subtitle" class="text-base md:text-md text-slate-500 text-center mb-6"></p>
 
@@ -171,7 +179,7 @@
                         <thead class="border-b-2 border-pink-200">
                             <tr>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-pink-500 uppercase tracking-wider w-2/3">Nombre del Alumno</th>
-                                <th scope="col" id="header-period-1" class="px-4 py-3 text-center text-xs font-bold text-pink-500 uppercase tracking-wider">Asistencia</th>
+                                <th scope="col" class="px-4 py-3 text-center text-xs font-bold text-pink-500 uppercase tracking-wider">Asistencia</th>
                             </tr>
                         </thead>
                         <tbody id="student-list" class="divide-y divide-pink-100">
@@ -187,12 +195,6 @@
                 </button>
                 <button id="history-btn" class="bubble-btn w-full sm:w-auto">
                     Ver Historial
-                </button>
-                <button id="print-btn" class="bubble-btn w-full sm:w-auto">
-                    Imprimir
-                </button>
-                <button id="pdf-btn" class="bubble-btn w-full sm:w-auto">
-                    Guardar como PDF
                 </button>
             </div>
         </main>
@@ -247,6 +249,8 @@
         </div>
     </div>
 
+    <div id="printable-history"></div>
+
     <footer class="text-center py-4 mt-8">
         <p class="text-sm text-pink-800">© 2025 | Adriana A. Barrios Rodríguez | Todos los derechos reservados.</p>
     </footer>
@@ -284,8 +288,6 @@
             const placeholder = document.getElementById('placeholder');
             const saveBtn = document.getElementById('save-btn');
             const historyBtn = document.getElementById('history-btn');
-            const printBtn = document.getElementById('print-btn');
-            const pdfBtn = document.getElementById('pdf-btn');
             const historyModal = document.getElementById('historyModal');
             const closeModal = document.getElementById('closeModal');
             const closeModalBtn = document.getElementById('closeModalBtn');
@@ -432,9 +434,8 @@
                     dateCard.appendChild(dateHeader);
 
                     Object.keys(allRecords[date]).sort().forEach(group => {
+                        const recordKey = `attendance_${group}_${date}`;
                         const groupRecord = allRecords[date][group];
-                        const attendance = groupRecord.attendance || groupRecord;
-                        const evaluator = groupRecord.evaluator || 'N/A';
                         
                         const groupAccordion = document.createElement('div');
                         groupAccordion.className = 'mb-2';
@@ -444,18 +445,19 @@
 
                         const button = document.createElement('button');
                         button.className = 'flex-grow w-full text-left p-3 bg-white rounded-md shadow-sm font-medium hover:bg-pink-50 focus:outline-none transition-colors';
-                        button.innerHTML = `<span>Grupo ${group}</span><span class="text-xs text-slate-400 ml-2 font-normal">(Evaluado por: ${evaluator})</span>`;
+                        button.innerHTML = `<span>Grupo ${group}</span><span class="text-xs text-slate-400 ml-2 font-normal">(Evaluado por: ${groupRecord.evaluator || 'N/A'})</span>`;
                         
                         const deleteBtn = document.createElement('button');
                         deleteBtn.className = 'p-3 bg-red-100 text-red-600 hover:bg-red-200 rounded-md shadow-sm transition-colors flex-shrink-0';
                         deleteBtn.title = 'Borrar este registro';
                         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>`;
-                        const recordKey = `attendance_${group}_${date}`;
                         deleteBtn.onclick = (e) => { e.stopPropagation(); deleteRecord(recordKey); };
 
+                        const contentId = `content-${recordKey}`;
                         const content = document.createElement('div');
+                        content.id = contentId;
                         content.className = 'hidden p-3 mt-1 bg-white rounded-md';
-                        content.innerHTML = `<table class="min-w-full text-sm"><thead><tr class="border-b"><th class="text-left py-2 font-medium">Alumno</th><th class="text-center py-2 font-medium">Asistencia</th></tr></thead><tbody>${attendance.map(s => `<tr class="border-b"><td class="py-2">${s.name}</td><td class="text-center py-2">${s.status}${s.isDouble ? ' (2x)' : ''}</td></tr>`).join('')}</tbody></table>`;
+                        content.innerHTML = buildHistoryTable(groupRecord.attendance, contentId);
                             
                         button.onclick = () => content.classList.toggle('hidden');
                         
@@ -467,6 +469,90 @@
                     });
                     historyContent.appendChild(dateCard);
                 });
+            }
+
+            function buildHistoryTable(attendanceData, contentId, isSummary = false) {
+                let dataToRender = attendanceData;
+                if(isSummary) {
+                    dataToRender = attendanceData.filter(s => s.status !== 'P');
+                }
+
+                const tableRows = dataToRender.map(s => `<tr class="border-b"><td class="py-2">${s.name}</td><td class="text-center py-2">${s.status}${s.isDouble ? ' (2x)' : ''}</td></tr>`).join('');
+                const summaryBtnText = isSummary ? 'Ver Completo' : 'Resumir';
+
+                return `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead><tr class="border-b"><th class="text-left py-2 font-medium">Alumno</th><th class="text-center py-2 font-medium">Asistencia</th></tr></thead>
+                            <tbody>${tableRows.length > 0 ? tableRows : `<tr><td colspan="2" class="text-center py-3 text-slate-500">${isSummary ? 'Ninguna inasistencia.' : 'No hay datos.'}</td></tr>`}</tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
+                        <button onclick="toggleSummary('${contentId}', ${!isSummary})" class="bubble-btn !p-2 !text-xs">${summaryBtnText}</button>
+                        <button onclick="printHistoryRecord('${contentId}')" class="bubble-btn !p-2 !text-xs">Imprimir</button>
+                        <button onclick="generatePdfForHistoryRecord('${contentId}', '${contentId.replace('content-','')}')" class="bubble-btn !p-2 !text-xs">PDF</button>
+                    </div>
+                `;
+            }
+
+            window.toggleSummary = (contentId, isSummary) => {
+                const contentEl = document.getElementById(contentId);
+                const recordKey = contentId.replace('content-', '');
+                const [, group, date] = recordKey.split('_');
+                const record = JSON.parse(localStorage.getItem(recordKey));
+                contentEl.innerHTML = buildHistoryTable(record.attendance, contentId, isSummary);
+            }
+
+            window.printHistoryRecord = (contentId) => {
+                const printableArea = document.getElementById('printable-history');
+                const originalContent = document.getElementById(contentId).querySelector('.overflow-x-auto');
+                printableArea.innerHTML = originalContent.innerHTML;
+                window.print();
+                printableArea.innerHTML = '';
+            }
+
+            window.generatePdfForHistoryRecord = async (contentId, recordKey) => {
+                const { jsPDF } = window.jspdf;
+                const record = JSON.parse(localStorage.getItem(recordKey));
+                const contentEl = document.getElementById(contentId).querySelector('.overflow-x-auto');
+
+                // Create a temporary clone for PDF generation
+                const pdfContainer = document.createElement('div');
+                pdfContainer.style.position = 'absolute';
+                pdfContainer.style.left = '-9999px';
+                pdfContainer.style.background = 'white';
+                pdfContainer.style.padding = '20px';
+                pdfContainer.style.width = '800px';
+
+                const title = document.createElement('h2');
+                const subTitle = document.createElement('p');
+                const evaluator = document.createElement('p');
+                
+                title.textContent = `Lista de Asistencia - ${groupNames[recordKey.split('_')[1]] || 'Grupo'}`;
+                subTitle.textContent = `Fecha: ${new Date(recordKey.split('_')[2] + 'T00:00:00').toLocaleDateString('es-ES')}`;
+                evaluator.textContent = `Evaluado por: ${record.evaluator}`;
+
+                title.className = "text-xl font-semibold text-center text-slate-700 mb-2";
+                subTitle.className = "text-base text-slate-500 text-center mb-1";
+                evaluator.className = "text-sm text-slate-500 text-center mb-6";
+
+                pdfContainer.appendChild(title);
+                pdfContainer.appendChild(subTitle);
+                pdfContainer.appendChild(evaluator);
+                pdfContainer.appendChild(contentEl.cloneNode(true));
+                document.body.appendChild(pdfContainer);
+
+                const canvas = await html2canvas(pdfContainer, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png');
+                
+                document.body.removeChild(pdfContainer);
+
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+                const { width: pdfWidth, height: pdfHeight } = pdf.internal.pageSize;
+                const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+                const imgX = (pdfWidth - canvas.width * ratio) / 2;
+                pdf.addImage(imgData, 'PNG', imgX, 30, canvas.width * ratio, canvas.height * ratio);
+                pdf.save(`Asistencia_${recordKey.split('_')[1]}_${recordKey.split('_')[2]}.pdf`);
             }
             
             function renderGroupTabs() {
@@ -501,8 +587,6 @@
                 });
                 
                 historyBtn.addEventListener('click', showHistory);
-                printBtn.addEventListener('click', () => window.print());
-                pdfBtn.addEventListener('click', generatePDF);
                 closeModal.addEventListener('click', () => historyModal.style.display = 'none');
                 closeModalBtn.addEventListener('click', () => historyModal.style.display = 'none');
                 deleteAllHistoryBtn.addEventListener('click', deleteAllHistory);
@@ -573,61 +657,6 @@
                 }
             }
             
-            async function generatePDF() {
-                if (!currentGroup) return;
-                const { jsPDF } = window.jspdf;
-                const sheet = document.getElementById('printable-area');
-                
-                const dateKey = currentDate.toISOString().split('T')[0];
-                const recordKey = `attendance_${currentGroup}_${dateKey}`;
-                const record = JSON.parse(localStorage.getItem(recordKey));
-                const evaluatorName = record ? record.evaluator : '(No guardado)';
-                
-                const evaluatorEl = document.createElement('p');
-                evaluatorEl.textContent = `Evaluado por: ${evaluatorName}`;
-                evaluatorEl.className = 'text-sm text-slate-500 text-center mt-4';
-                sheet.appendChild(evaluatorEl);
-
-                const cellsToRestore = [];
-                sheet.querySelectorAll('tbody td:last-child').forEach(cell => {
-                    const originalContent = cell.innerHTML;
-                    cellsToRestore.push({ cell, originalContent });
-
-                    const selectedBtn = cell.querySelector('.attendance-btn.selected');
-                    const doubleBtn = cell.querySelector('.double-toggle-btn');
-                    let statusText = '-';
-                    if (selectedBtn) {
-                        const status = selectedBtn.dataset.status;
-                        const isDouble = doubleBtn && doubleBtn.dataset.double === 'true';
-                        statusText = `${status.charAt(0).toUpperCase() + status.slice(1)}${isDouble ? ' (2x)' : ''}`;
-                    }
-                    cell.innerHTML = `<div class="text-center text-sm py-4">${statusText}</div>`;
-                });
-
-                const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: null });
-                evaluatorEl.remove(); 
-                
-                cellsToRestore.forEach(({cell, originalContent}) => {
-                    cell.innerHTML = originalContent;
-                    cell.querySelectorAll('button').forEach(button => {
-                         if(button.classList.contains('attendance-btn')) button.onclick = (e) => selectStatus(e.target);
-                         if(button.classList.contains('double-toggle-btn')) button.onclick = () => {
-                            const isDouble = button.dataset.double === 'true';
-                            button.dataset.double = !isDouble;
-                            button.classList.toggle('active');
-                         };
-                    });
-                });
-
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-                const { width: pdfWidth, height: pdfHeight } = pdf.internal.pageSize;
-                const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
-                const imgX = (pdfWidth - canvas.width * ratio) / 2;
-                pdf.addImage(imgData, 'PNG', imgX, 30, canvas.width * ratio, canvas.height * ratio);
-                pdf.save(`Asistencia_Grupo-${currentGroup}_${dateKey}.pdf`);
-            }
-
             initialize();
         });
     </script>
