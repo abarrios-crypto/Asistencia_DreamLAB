@@ -7,15 +7,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Fredoka One', cursive;
-            background: radial-gradient(circle at top, #fff0f5 0%, #fce7f3 60%, #fbcfe8 100%);
+            background: radial-gradient(circle at top, #ffeff5 0%, #fce7f3 60%, #fbcfe8 100%);
             color: #4a5568;
             text-shadow: -1px -1px 0 rgba(255,255,255,0.7), 1px -1px 0 rgba(255,255,255,0.7), -1px 1px 0 rgba(255,255,255,0.7), 1px 1px 0 rgba(255,255,255,0.7);
+            overflow-x: hidden;
         }
         input, textarea, ::placeholder {
             text-shadow: none;
@@ -24,6 +26,19 @@
             background: rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transform: skewX(-30deg);
+            animation: shine 8s infinite;
         }
         .attendance-btn {
             transition: all 0.2s ease-in-out;
@@ -40,16 +55,21 @@
             text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
         }
         .double-toggle-btn {
-            background-color: #cbd5e1;
-            color: #64748b;
-            border: 2px solid #e2e8f0;
-            transition: all 0.2s ease-out;
+            background-color: #f1f5f9; /* cool-gray-100 */
+            color: #64748b; /* cool-gray-500 */
+            border: 2px solid #e2e8f0; /* cool-gray-200 */
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .double-toggle-btn.active {
-            background-color: #fde047; /* Yellow star color */
-            color: #b45309;
-            border-color: #fef08a;
-            transform: scale(1.1) rotate(15deg);
+            background-image: linear-gradient(to right, #fde047, #facc15); /* yellow-400 to yellow-500 */
+            color: #b45309; /* amber-700 */
+            border-color: #fef08a; /* yellow-200 */
+            transform: scale(1.1);
+            animation: magical-glow 1.5s infinite ease-in-out;
         }
         
         #group-tabs {
@@ -113,47 +133,95 @@
             border-bottom-color: #047857;
         }
 
-        #historyModal, #saveModal {
-            display: none;
-            animation: fadeIn 0.3s ease-out;
+        #historyModal, #saveModal { display: none; }
+        .modal-enter { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .sheet-enter { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        .star {
+            position: fixed;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle linear infinite;
+            box-shadow: 0 0 5px white, 0 0 10px white;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+        .shooting-star {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            height: 2px;
+            background: linear-gradient(-45deg, #fbcfe8, rgba(0, 0, 255, 0));
+            border-radius: 999px;
+            filter: drop-shadow(0 0 6px #fbcfe8);
+            animation: tail 3s ease-in-out infinite, shooting 3s ease-in-out infinite;
         }
+        .shooting-star::before, .shooting-star::after {
+            content: '';
+            position: absolute;
+            top: calc(50% - 1px);
+            right: 0;
+            height: 2px;
+            background: linear-gradient(-45deg, rgba(0, 0, 255, 0), #fbcfe8, rgba(0, 0, 255, 0));
+            border-radius: 100%;
+            transform: translateX(50%) rotateZ(45deg);
+            animation: shining 3s ease-in-out infinite;
+        }
+        .shooting-star::after { transform: translateX(50%) rotateZ(-45deg); }
 
-        @keyframes selected-glow {
-            0% { box-shadow: 0 0 5px #fff, 0 0 10px #fbcfe8; }
-            50% { box-shadow: 0 0 20px #fff, 0 0 30px #f9a8d4, 0 0 40px #f472b6; }
-            100% { box-shadow: 0 0 5px #fff, 0 0 10px #fbcfe8; }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 150%; }
+            100% { left: 150%; }
+        }
+        @keyframes twinkle {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes tail {
+          0% { width: 0; }
+          30% { width: 100px; }
+          100% { width: 0; }
+        }
+        @keyframes shooting {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(300px); }
+        }
+        @keyframes shining {
+          0% { width: 0; }
+          50% { width: 30px; }
+          100% { width: 0; }
+        }
+        @keyframes magical-glow {
+            0% { box-shadow: 0 0 3px #fff, 0 0 6px #fef08a, 0 0 9px #fde047; }
+            50% { box-shadow: 0 0 8px #fff, 0 0 16px #fef08a, 0 0 24px #fde047; }
+            100% { box-shadow: 0 0 3px #fff, 0 0 6px #fef08a, 0 0 9px #fde047; }
         }
 
         #printable-history { display: none; }
-
         @media print {
             body, body * { visibility: hidden; }
             #printable-history, #printable-history * { visibility: visible; }
-            #printable-history {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 2rem;
-                background: white;
-            }
+            #printable-history { position: absolute; left: 0; top: 0; width: 100%; padding: 2rem; background: white; }
         }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8 flex flex-col">
+    <div id="star-container"></div>
+    <div id="shooting-star-container"></div>
 
     <div id="app" class="container mx-auto max-w-7xl flex-grow">
         <header class="glass-card shadow-lg rounded-2xl p-4 sm:p-6 mb-8">
             <div class="flex flex-col sm:flex-row justify-between items-center">
                 <div class="flex items-center gap-4 mb-4 sm:mb-0">
-                    <div class="bg-pink-200 p-3 rounded-full">
-                        <svg class="w-6 h-6 sm:w-8 sm:h-8 text-pink-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    <div id="header-icon-container" class="bg-pink-200 p-3 rounded-full transition-transform duration-300 hover:rotate-12 hover:scale-110">
+                         <!-- Warp Star SVG -->
+                        <svg class="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z" fill="#FFD700" stroke="#FDB813" stroke-width="1.5"/>
                         </svg>
                     </div>
                     <div>
@@ -182,20 +250,14 @@
                                 <th scope="col" class="px-4 py-3 text-center text-xs font-bold text-pink-500 uppercase tracking-wider">Asistencia</th>
                             </tr>
                         </thead>
-                        <tbody id="student-list" class="divide-y divide-pink-100">
-                            <!-- Los alumnos se insertarán aquí dinámicamente -->
-                        </tbody>
+                        <tbody id="student-list" class="divide-y divide-pink-100"></tbody>
                     </table>
                 </div>
             </div>
             
             <div class="mt-8 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-3 sm:gap-4 no-print">
-                 <button id="save-btn" class="bubble-btn w-full sm:w-auto">
-                    Guardar Asistencia
-                </button>
-                <button id="history-btn" class="bubble-btn w-full sm:w-auto">
-                    Ver Historial
-                </button>
+                 <button id="save-btn" class="bubble-btn w-full sm:w-auto">Guardar Asistencia</button>
+                <button id="history-btn" class="bubble-btn w-full sm:w-auto">Ver Historial</button>
             </div>
         </main>
         
@@ -204,33 +266,23 @@
         </div>
     </div>
 
-    <!-- Modal de Historial -->
+    <!-- Modals -->
     <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
-        <div class="glass-card rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div class="glass-card rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col modal-enter">
             <div class="p-6 border-b border-pink-200 flex justify-between items-center">
                 <h3 class="text-xl md:text-2xl font-bold text-pink-600">Historial de Asistencia</h3>
                 <button id="closeModal" class="text-slate-400 hover:text-rose-500 text-3xl">&times;</button>
             </div>
-            <div class="p-6 overflow-y-auto">
-                <div id="history-content" class="space-y-6">
-                    <!-- El historial se cargará aquí -->
-                </div>
-            </div>
+            <div class="p-6 overflow-y-auto"><div id="history-content" class="space-y-6"></div></div>
              <div class="p-4 bg-white/20 border-t rounded-b-2xl flex flex-col sm:flex-row justify-between items-center gap-3">
-                <button id="deleteAllHistoryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors w-full sm:w-auto">
-                    Borrar Todo el Historial
-                </button>
+                <button id="deleteAllHistoryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors w-full sm:w-auto">Borrar Todo</button>
                 <button id="closeModalBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto">Cerrar</button>
             </div>
         </div>
     </div>
-
-    <!-- Modal de Guardado -->
     <div id="saveModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="glass-card rounded-2xl shadow-xl w-full max-w-md flex flex-col">
-            <div class="p-6 border-b border-pink-200">
-                <h3 class="text-2xl font-bold text-pink-600 text-center">Confirmar Guardado</h3>
-            </div>
+        <div class="glass-card rounded-2xl shadow-xl w-full max-w-md flex flex-col modal-enter">
+            <div class="p-6 border-b border-pink-200"><h3 class="text-2xl font-bold text-pink-600 text-center">Confirmar Guardado</h3></div>
             <div class="p-6 space-y-4">
                 <div>
                     <label for="evaluatorName" class="block mb-2 text-sm font-bold text-pink-700">Nombre del Evaluador:</label>
@@ -240,10 +292,10 @@
                     <label for="password" class="block mb-2 text-sm font-bold text-pink-700">Contraseña:</label>
                     <input type="password" id="password" class="w-full px-4 py-2 rounded-lg border-2 border-pink-200 focus:outline-none focus:border-pink-500 text-slate-700" placeholder="••••••••">
                 </div>
-                <p id="saveError" class="text-red-600 font-bold text-sm text-center hidden">Contraseña incorrecta. Inténtalo de nuevo.</p>
+                <p id="saveError" class="text-red-600 font-bold text-sm text-center hidden">Contraseña incorrecta.</p>
             </div>
              <div class="p-4 bg-white/20 border-t rounded-b-2xl flex flex-col sm:flex-row justify-center gap-4">
-                <button id="confirmSaveBtn" class="bubble-btn w-full sm:w-auto">Confirmar y Guardar</button>
+                <button id="confirmSaveBtn" class="bubble-btn w-full sm:w-auto">Confirmar</button>
                 <button id="cancelSaveBtn" class="bubble-btn w-full sm:w-auto" style="background-color: #f87171; border-bottom-color: #b91c1c;">Cancelar</button>
             </div>
         </div>
@@ -258,6 +310,52 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // --- SOUND SETUP ---
+            let soundsEnabled = false;
+            let clickSound, successSound, errorSound;
+
+            function initializeSounds() {
+                if (soundsEnabled) return;
+                soundsEnabled = true;
+                 clickSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } }).toDestination();
+                 successSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.2, sustain: 0.2, release: 0.2 } }).toDestination();
+                 errorSound = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination();
+            }
+            document.body.addEventListener('click', initializeSounds, { once: true });
+
+
+            // --- UI & ANIMATION SETUP ---
+            const starContainer = document.getElementById('star-container');
+            for(let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                star.style.animationDelay = `${Math.random() * 3}s`;
+                starContainer.appendChild(star);
+            }
+
+            function triggerShootingStars() {
+                const container = document.getElementById('shooting-star-container');
+                container.innerHTML = '';
+                for(let i = 0; i < 3; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'shooting-star';
+                    star.style.top = `${Math.random() * 100}%`;
+                    star.style.left = `calc(-100px + ${Math.random() * 30}%)`;
+                    const duration = Math.random() * 2 + 1;
+                    star.style.animationDuration = `${duration}s`;
+                    star.style.animationDelay = `${Math.random() * 2}s`;
+                    container.appendChild(star);
+                }
+                setTimeout(() => container.innerHTML = '', 3000);
+            }
+
+
             // --- DATA ---
             const students = {
                 '5-1': ["AGUILAR GONZÁLEZ ALEXIS EMMANUEL", "ARMENTA FÉLIX GERMÁN", "ARREDONDO AGUILAR LITZY ESTEFANIA", "ARREDONDO LÓPEZ NELLY ALEJANDRA", "CUADRAS LUGO DULCE MAYTE", "CUADRAS MORENO CHRISTOPHER IRÁN", "ESCUDERO SALCEDO ANA BELÉN", "ESPINOZA LEYVA CINDY BELÉN", "GAMBOA LUGO KATHIA ISABEL", "GARNICA NUÑEZ ANA CARMEN", "GERARDO BOJÓRQUEZ METZLI", "GONZALEZ RUBIO ENRIQUE", "GUZMÁN LEÓN FÁTIMA ESTEFANÍA", "HUERTA NIEBLAS NAILEA", "JACOBO ISMERIO ANDRÉS ROGELIO", "LIZARRAGA SÁNCHEZ CARLOS UVALDO", "LUNA RODRÍguez WILLIAMS ALFREDO", "MASCAREÑO MORALES LUIS MARIO", "MENDOZA VILLANUEVA LUIS ENRIQUE", "MONTENEGRO GONZÁLEZ MARÍA JOSÉ", "ONTIVEROS MORALES BYANCA", "PARRA SÁNCHEZ VICTORIA AMAIRANY", "SARABIA CASTRO FRIDA VALERIA", "SEPULVEDA LUGO LUIS CARLOS", "SERRANO GONZÁLEZ MIGUEL ÁNGEL", "URBALEJO VALENZUELA JOKSAN JASSIEL", "ZAVALA JOANNE LORENΝΑ"],
@@ -267,13 +365,9 @@
                 '2-2': ["Estudiante 2-2 A", "Estudiante 2-2 B", "Estudiante 2-2 C"] // Placeholder
             };
             const groupNames = {
-                '5-1': 'Grupo 5-1',
-                '5-2': 'Grupo 5-2',
-                '5-3': 'Grupo 5-3',
-                '2-1': 'Grupo 2-1 (Fisio)',
-                '2-2': 'Grupo 2-2 (Fisio)'
+                '5-1': 'Grupo 5-1', '5-2': 'Grupo 5-2', '5-3': 'Grupo 5-3',
+                '2-1': 'Grupo 2-1 (Fisio)', '2-2': 'Grupo 2-2 (Fisio)'
             };
-
             const schedule = {
                 '2-1': { 2: { duration: 50 }, 3: { duration: 100 }, 4: { duration: 100 } },
                 '2-2': { 1: { duration: 100 }, 2: { duration: 100 }, 3: { duration: 50 } },
@@ -310,7 +404,6 @@
                 cell.className = "px-4 py-4 whitespace-nowrap text-center";
                 const container = document.createElement('div');
                 container.className = 'flex justify-center items-center gap-1 sm:gap-2';
-
                 const statuses = ['presente', 'falta', 'retardo', 'justificado'];
                 statuses.forEach(status => {
                     const button = document.createElement('button');
@@ -321,30 +414,28 @@
                     button.onclick = (e) => selectStatus(e.target);
                     container.appendChild(button);
                 });
-
                 if (isLongClass) {
                     const doubleBtn = document.createElement('button');
                     doubleBtn.textContent = '2x';
                     doubleBtn.title = 'Marcar como asistencia doble';
-                    doubleBtn.className = 'double-toggle-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full font-bold text-xs shadow-md ml-1 sm:ml-2';
+                    doubleBtn.className = 'double-toggle-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md ml-1 sm:ml-2';
                     doubleBtn.dataset.double = 'false';
                     doubleBtn.onclick = () => {
+                        if(soundsEnabled) clickSound.triggerAttackRelease("A4", "8n", Tone.now());
                         const isDouble = doubleBtn.dataset.double === 'true';
                         doubleBtn.dataset.double = !isDouble;
                         doubleBtn.classList.toggle('active');
                     };
                     container.appendChild(doubleBtn);
                 }
-
                 cell.appendChild(container);
                 return cell;
             }
 
             function selectStatus(selectedButton) {
+                if(soundsEnabled) clickSound.triggerAttackRelease("C5", "8n", Tone.now());
                 const parentContainer = selectedButton.parentElement;
-                parentContainer.querySelectorAll('.attendance-btn').forEach(btn => {
-                    btn.classList.remove('selected');
-                });
+                parentContainer.querySelectorAll('.attendance-btn').forEach(btn => btn.classList.remove('selected'));
                 selectedButton.classList.add('selected');
             }
             
@@ -352,18 +443,25 @@
                 const evaluatorName = evaluatorNameInput.value.trim();
                 const password = passwordInput.value;
                 const correctPassword = '100888';
-
                 if (evaluatorName === '') {
+                    if(soundsEnabled) errorSound.triggerAttackRelease("C3", "4n", Tone.now());
                     saveError.textContent = 'Por favor, ingresa tu nombre.';
                     saveError.classList.remove('hidden');
                     return;
                 }
-
                 if (password === correctPassword) {
+                    if(soundsEnabled) {
+                        const now = Tone.now();
+                        successSound.triggerAttackRelease("C5", "8n", now);
+                        successSound.triggerAttackRelease("E5", "8n", now + 0.1);
+                        successSound.triggerAttackRelease("G5", "8n", now + 0.2);
+                    }
+                    triggerShootingStars();
                     saveAttendance(evaluatorName);
                     saveModal.style.display = 'none';
                 } else {
-                    saveError.textContent = 'Contraseña incorrecta. Inténtalo de nuevo.';
+                    if(soundsEnabled) errorSound.triggerAttackRelease("C3", "4n", Tone.now());
+                    saveError.textContent = 'Contraseña incorrecta.';
                     saveError.classList.remove('hidden');
                     passwordInput.value = '';
                     passwordInput.focus();
@@ -372,40 +470,34 @@
 
             function saveAttendance(evaluatorName) {
                 if (!currentGroup) return;
-
                 const dateKey = currentDate.toISOString().split('T')[0];
                 const recordKey = `attendance_${currentGroup}_${dateKey}`;
                 const attendanceData = [];
                 const rows = studentList.querySelectorAll('tr');
-
                 rows.forEach(row => {
                     const studentName = row.dataset.studentName;
                     const statusBtn = row.querySelector('.attendance-btn.selected');
                     const doubleBtn = row.querySelector('.double-toggle-btn');
-                    
                     attendanceData.push({
                         name: studentName,
                         status: statusBtn ? statusBtn.dataset.status.charAt(0).toUpperCase() : '-',
                         isDouble: doubleBtn ? doubleBtn.dataset.double === 'true' : false,
                     });
                 });
-
                 const record = { evaluator: evaluatorName, attendance: attendanceData };
                 localStorage.setItem(recordKey, JSON.stringify(record));
-                
-                const originalText = 'Guardar Asistencia';
                 saveBtn.textContent = '¡Guardado!';
                 saveBtn.classList.add('saved');
                 setTimeout(() => {
-                    saveBtn.textContent = originalText;
+                    saveBtn.textContent = 'Guardar Asistencia';
                     saveBtn.classList.remove('saved');
                 }, 2000);
             }
 
             function showHistory() {
+                if(soundsEnabled) clickSound.triggerAttackRelease("E4", "8n", Tone.now());
                 historyModal.style.display = 'flex';
                 historyContent.innerHTML = ''; 
-
                 const allRecords = {};
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
@@ -415,52 +507,40 @@
                         allRecords[date][group] = JSON.parse(localStorage.getItem(key));
                     }
                 }
-
                 const sortedDates = Object.keys(allRecords).sort().reverse();
-
                 if (sortedDates.length === 0) {
                     historyContent.innerHTML = '<p class="text-slate-500 text-center">No hay registros guardados.</p>';
                     return;
                 }
-
                 sortedDates.forEach(date => {
                     const dateCard = document.createElement('div');
                     dateCard.className = 'glass-card p-4 rounded-xl';
-                    
                     const dateHeader = document.createElement('h4');
                     const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
                     dateHeader.textContent = formattedDate;
                     dateHeader.className = 'text-lg font-semibold text-slate-600 mb-3';
                     dateCard.appendChild(dateHeader);
-
                     Object.keys(allRecords[date]).sort().forEach(group => {
                         const recordKey = `attendance_${group}_${date}`;
                         const groupRecord = allRecords[date][group];
-                        
                         const groupAccordion = document.createElement('div');
                         groupAccordion.className = 'mb-2';
-                        
                         const accordionHeader = document.createElement('div');
                         accordionHeader.className = 'flex items-center gap-2';
-
                         const button = document.createElement('button');
                         button.className = 'flex-grow w-full text-left p-3 bg-white rounded-md shadow-sm font-medium hover:bg-pink-50 focus:outline-none transition-colors';
                         button.innerHTML = `<span>Grupo ${group}</span><span class="text-xs text-slate-400 ml-2 font-normal">(Evaluado por: ${groupRecord.evaluator || 'N/A'})</span>`;
-                        
                         const deleteBtn = document.createElement('button');
                         deleteBtn.className = 'p-3 bg-red-100 text-red-600 hover:bg-red-200 rounded-md shadow-sm transition-colors flex-shrink-0';
                         deleteBtn.title = 'Borrar este registro';
                         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>`;
                         deleteBtn.onclick = (e) => { e.stopPropagation(); deleteRecord(recordKey); };
-
                         const contentId = `content-${recordKey}`;
                         const content = document.createElement('div');
                         content.id = contentId;
                         content.className = 'hidden p-3 mt-1 bg-white rounded-md';
                         content.innerHTML = buildHistoryTable(groupRecord.attendance, contentId);
-                            
                         button.onclick = () => content.classList.toggle('hidden');
-                        
                         accordionHeader.appendChild(button);
                         accordionHeader.appendChild(deleteBtn);
                         groupAccordion.appendChild(accordionHeader);
@@ -472,14 +552,9 @@
             }
 
             function buildHistoryTable(attendanceData, contentId, isSummary = false) {
-                let dataToRender = attendanceData;
-                if(isSummary) {
-                    dataToRender = attendanceData.filter(s => s.status !== 'P');
-                }
-
+                let dataToRender = isSummary ? attendanceData.filter(s => s.status !== 'P') : attendanceData;
                 const tableRows = dataToRender.map(s => `<tr class="border-b"><td class="py-2">${s.name}</td><td class="text-center py-2">${s.status}${s.isDouble ? ' (2x)' : ''}</td></tr>`).join('');
                 const summaryBtnText = isSummary ? 'Ver Completo' : 'Resumir';
-
                 return `
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
@@ -488,21 +563,31 @@
                         </table>
                     </div>
                     <div class="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
+                        <button onclick="editHistoryRecord('${contentId.replace('content-','')}')" class="bubble-btn !p-2 !text-xs" style="background-color: #a78bfa; border-bottom-color: #6d28d9;">Editar</button>
                         <button onclick="toggleSummary('${contentId}', ${!isSummary})" class="bubble-btn !p-2 !text-xs">${summaryBtnText}</button>
                         <button onclick="printHistoryRecord('${contentId}')" class="bubble-btn !p-2 !text-xs">Imprimir</button>
                         <button onclick="generatePdfForHistoryRecord('${contentId}', '${contentId.replace('content-','')}')" class="bubble-btn !p-2 !text-xs">PDF</button>
-                    </div>
-                `;
+                    </div>`;
+            }
+
+            window.editHistoryRecord = (recordKey) => {
+                if(soundsEnabled) clickSound.triggerAttackRelease("B4", "8n", Tone.now());
+                const [, group, date] = recordKey.split('_');
+                const record = JSON.parse(localStorage.getItem(recordKey));
+                currentDate = new Date(date + 'T00:00:00'); 
+                currentGroup = group;
+                document.getElementById('current-date').textContent = currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.toggle('active', tab.dataset.group === group));
+                renderAttendanceSheet(record.attendance);
+                historyModal.style.display = 'none';
             }
 
             window.toggleSummary = (contentId, isSummary) => {
                 const contentEl = document.getElementById(contentId);
                 const recordKey = contentId.replace('content-', '');
-                const [, group, date] = recordKey.split('_');
                 const record = JSON.parse(localStorage.getItem(recordKey));
                 contentEl.innerHTML = buildHistoryTable(record.attendance, contentId, isSummary);
             }
-
             window.printHistoryRecord = (contentId) => {
                 const printableArea = document.getElementById('printable-history');
                 const originalContent = document.getElementById(contentId).querySelector('.overflow-x-auto');
@@ -510,43 +595,24 @@
                 window.print();
                 printableArea.innerHTML = '';
             }
-
             window.generatePdfForHistoryRecord = async (contentId, recordKey) => {
                 const { jsPDF } = window.jspdf;
                 const record = JSON.parse(localStorage.getItem(recordKey));
                 const contentEl = document.getElementById(contentId).querySelector('.overflow-x-auto');
-
-                // Create a temporary clone for PDF generation
                 const pdfContainer = document.createElement('div');
-                pdfContainer.style.position = 'absolute';
-                pdfContainer.style.left = '-9999px';
-                pdfContainer.style.background = 'white';
-                pdfContainer.style.padding = '20px';
-                pdfContainer.style.width = '800px';
-
-                const title = document.createElement('h2');
-                const subTitle = document.createElement('p');
-                const evaluator = document.createElement('p');
-                
+                pdfContainer.style.cssText = 'position:absolute; left:-9999px; background:white; padding:20px; width:800px;';
+                const title = document.createElement('h2'), subTitle = document.createElement('p'), evaluator = document.createElement('p');
                 title.textContent = `Lista de Asistencia - ${groupNames[recordKey.split('_')[1]] || 'Grupo'}`;
                 subTitle.textContent = `Fecha: ${new Date(recordKey.split('_')[2] + 'T00:00:00').toLocaleDateString('es-ES')}`;
                 evaluator.textContent = `Evaluado por: ${record.evaluator}`;
-
                 title.className = "text-xl font-semibold text-center text-slate-700 mb-2";
                 subTitle.className = "text-base text-slate-500 text-center mb-1";
                 evaluator.className = "text-sm text-slate-500 text-center mb-6";
-
-                pdfContainer.appendChild(title);
-                pdfContainer.appendChild(subTitle);
-                pdfContainer.appendChild(evaluator);
-                pdfContainer.appendChild(contentEl.cloneNode(true));
+                pdfContainer.append(title, subTitle, evaluator, contentEl.cloneNode(true));
                 document.body.appendChild(pdfContainer);
-
                 const canvas = await html2canvas(pdfContainer, { scale: 2 });
-                const imgData = canvas.toDataURL('image/png');
-                
                 document.body.removeChild(pdfContainer);
-
+                const imgData = canvas.toDataURL('image/png');
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
                 const { width: pdfWidth, height: pdfHeight } = pdf.internal.pageSize;
                 const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
@@ -568,6 +634,9 @@
             }
 
             function selectGroup(groupKey) {
+                if(soundsEnabled) clickSound.triggerAttackRelease("G4", "8n", Tone.now());
+                currentDate = new Date();
+                document.getElementById('current-date').textContent = currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 currentGroup = groupKey;
                 document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.toggle('active', tab.dataset.group === groupKey));
                 renderAttendanceSheet();
@@ -576,17 +645,17 @@
             function initialize() {
                 document.getElementById('current-date').textContent = currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 renderGroupTabs();
-                
                 saveBtn.addEventListener('click', () => {
                     if (!currentGroup) return;
+                    if(soundsEnabled) clickSound.triggerAttackRelease("E4", "8n", Tone.now());
                     saveError.classList.add('hidden');
                     passwordInput.value = '';
                     evaluatorNameInput.value = '';
                     saveModal.style.display = 'flex';
                     evaluatorNameInput.focus();
                 });
-                
                 historyBtn.addEventListener('click', showHistory);
+                closeModal.addEventListener('click', () => saveModal.style.display = 'none');
                 closeModal.addEventListener('click', () => historyModal.style.display = 'none');
                 closeModalBtn.addEventListener('click', () => historyModal.style.display = 'none');
                 deleteAllHistoryBtn.addEventListener('click', deleteAllHistory);
@@ -594,26 +663,26 @@
                 confirmSaveBtn.addEventListener('click', handleSaveConfirmation);
             }
 
-            function renderAttendanceSheet() {
+            function renderAttendanceSheet(savedData = null) {
                 if (!currentGroup) {
                     attendanceSheet.classList.add('hidden');
                     placeholder.classList.remove('hidden');
                     return;
                 }
-
-                attendanceSheet.classList.remove('hidden');
                 placeholder.classList.add('hidden');
-                
+                attendanceSheet.classList.remove('hidden', 'sheet-enter');
+                void attendanceSheet.offsetWidth; 
+                attendanceSheet.classList.add('sheet-enter');
                 const groupStudents = students[currentGroup].sort((a, b) => a.localeCompare(b));
                 studentList.innerHTML = '';
-
                 const dayOfWeek = currentDate.getDay();
                 const todaySchedule = schedule[currentGroup]?.[dayOfWeek];
                 const baseDuration = currentGroup.startsWith('5-3') ? 40 : 50;
                 const isLongClass = todaySchedule && todaySchedule.duration > baseDuration;
-                
                 document.getElementById('sheet-title').textContent = `Lista de Asistencia - ${groupNames[currentGroup]}`;
                 document.getElementById('sheet-subtitle').textContent = `Fecha: ${currentDate.toLocaleDateString('es-ES')}`;
+                
+                const statusMap = { 'P': 'presente', 'F': 'falta', 'R': 'retardo', 'J': 'justificado' };
 
                 groupStudents.forEach((studentName) => {
                     const row = document.createElement('tr');
@@ -621,10 +690,27 @@
                     const nameCell = document.createElement('td');
                     nameCell.className = "px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-800";
                     nameCell.textContent = studentName;
-
                     const attendanceCell = createAttendanceCell(isLongClass);
-                    attendanceCell.querySelector('.attendance-btn[data-status="presente"]').classList.add('selected');
-
+                    if (savedData) {
+                        const studentData = savedData.find(s => s.name === studentName);
+                        if (studentData && studentData.status !== '-') {
+                            const fullStatus = statusMap[studentData.status];
+                            const statusBtn = attendanceCell.querySelector(`.attendance-btn[data-status="${fullStatus}"]`);
+                            if (statusBtn) statusBtn.classList.add('selected');
+                            
+                            if (studentData.isDouble) {
+                                const doubleBtn = attendanceCell.querySelector('.double-toggle-btn');
+                                if (doubleBtn) {
+                                    doubleBtn.dataset.double = 'true';
+                                    doubleBtn.classList.add('active');
+                                }
+                            }
+                        } else {
+                             attendanceCell.querySelector('.attendance-btn[data-status="presente"]').classList.add('selected');
+                        }
+                    } else {
+                        attendanceCell.querySelector('.attendance-btn[data-status="presente"]').classList.add('selected');
+                    }
                     row.appendChild(nameCell);
                     row.appendChild(attendanceCell);
                     studentList.appendChild(row);
@@ -632,24 +718,27 @@
             }
 
             function deleteRecord(key) {
+                if(soundsEnabled) errorSound.triggerAttackRelease("A2", "4n", Tone.now());
                 localStorage.removeItem(key);
                 showHistory(); 
             }
 
             function deleteAllHistory() {
                 if (deleteAllHistoryBtn.dataset.confirming) {
+                    if(soundsEnabled) errorSound.triggerAttackRelease("A2", "2n", Tone.now());
                     Object.keys(localStorage).filter(k => k.startsWith('attendance_')).forEach(k => localStorage.removeItem(k));
                     showHistory();
-                    deleteAllHistoryBtn.textContent = 'Borrar Todo el Historial';
+                    deleteAllHistoryBtn.textContent = 'Borrar Todo';
                     deleteAllHistoryBtn.classList.replace('bg-yellow-500', 'bg-red-500');
                     delete deleteAllHistoryBtn.dataset.confirming;
                 } else {
+                    if(soundsEnabled) errorSound.triggerAttackRelease("C3", "4n", Tone.now());
                     deleteAllHistoryBtn.dataset.confirming = 'true';
-                    deleteAllHistoryBtn.textContent = '¿Seguro? ¡Clic de nuevo!';
+                    deleteAllHistoryBtn.textContent = '¿Seguro?';
                     deleteAllHistoryBtn.classList.replace('bg-red-500', 'bg-yellow-500');
                     setTimeout(() => {
                         if (deleteAllHistoryBtn.dataset.confirming) {
-                            deleteAllHistoryBtn.textContent = 'Borrar Todo el Historial';
+                            deleteAllHistoryBtn.textContent = 'Borrar Todo';
                             deleteAllHistoryBtn.classList.replace('bg-yellow-500', 'bg-red-500');
                             delete deleteAllHistoryBtn.dataset.confirming;
                         }
